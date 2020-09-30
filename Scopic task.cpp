@@ -79,13 +79,13 @@ float *convert_to_orgb(uchar *in_data, int width, int height, int channels) {
             if (theta > 0) {
                 theta0 = theta < M_PI / 3.f 
                                             ? (3.f/2.f) * theta
-                                            : M_PI / 2 + (3.f / 4.f) * (theta - M_PI / 3);
+                                            : M_PI / 2 + (3.f / 4.f) * (theta - M_PI / 3.f);
             } else {
                 theta0 = theta > -M_PI / 3.f 
                                             ? (3.f / 2.f) * theta
-                                            : M_PI / 2 + (3.f / 4.f) * (theta - M_PI / 3);
+                                            : M_PI / 2 + (3.f / 4.f) * (theta - M_PI / 3.f);
             }
-            /* Remember rotation matrix  
+            /*  rotation matrix  
              * [ cos theta - sin theta] [c1]
              * [ sin theta   cos theta] [c2]
              */
@@ -116,17 +116,21 @@ uchar *convert_to_srgb(float *in_data, int width, int height) {
             float theta;
             if (theta0 > 0) {
                 theta = theta0 < M_PI / 2 
-                                            ? theta0 / (1.5f)
+                                            ? (2.f / 3.f) * theta0
                                             : M_PI / 3.f + (4.f / 3.f) * (theta0 - M_PI / 2);
             } else {
                 theta = theta0 > - M_PI / 2 
-                                            ? theta0 / (1.5f)
+                                            ? (2.f / 3.f) * theta0
                                             : M_PI / 3.f + (4.f / 3.f) * (theta0 - M_PI / 2);
             }
 
             float rotation_angle = theta0 - theta;
             
             /* Inverse rotation? */
+            /*  rotation matrix
+             * [   cos theta  sin theta] [c_yb]
+             * [ - sin theta  cos theta] [c_rg]
+             */
             float c1 =   cos(rotation_angle) * c_yb + sin(rotation_angle) * c_rg;
             float c2 = - sin(rotation_angle) * c_yb + cos(rotation_angle) * c_rg;
            
@@ -134,9 +138,9 @@ uchar *convert_to_srgb(float *in_data, int width, int height) {
             float g = 1.0000f * luma + 0.1140f * c1 - 0.4111f * c2;
             float b = 1.0000f * luma - 0.8860f * c1 + 0.1663f * c2;
 
-            out_data[(i * width + k) * 3]     = uchar(r * 255.f);
-            out_data[(i * width + k) * 3 + 1] = uchar(g * 255.f);
-            out_data[(i * width + k) * 3 + 2] = uchar(b * 255.f);
+            out_data[(i * width + k) * 3]     = uchar(r * 255.f + 0.5);
+            out_data[(i * width + k) * 3 + 1] = uchar(g * 255.f + 0.5);
+            out_data[(i * width + k) * 3 + 2] = uchar(b * 255.f + 0.5);
         }
     }
 
@@ -200,6 +204,11 @@ int main() {
 
 
 
+    /*
+    uchar arr[3] = { 255, 0, 0 };
+    float *orgb_color = convert_to_orgb(arr, 1, 1, 3);
+    uchar *rgb_color = convert_to_srgb(orgb_color, 1, 1);
+    */
 
     img = stbi_load("color test.png", &width, &height, &channels, 0);
     float *orgb_color = convert_to_orgb(img, width, height, channels);
@@ -216,7 +225,6 @@ int main() {
         std::cout << (int)rgb_color_test[i * 3 + 0] << " " 
                   << (int)rgb_color_test[i * 3 + 1] << " " 
                   << (int)rgb_color_test[i * 3 + 2] << " " << std::endl;
-   /* 
-   
-    */
-}
+
+  
+    }
