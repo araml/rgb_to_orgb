@@ -83,7 +83,7 @@ float *convert_to_orgb(uchar *in_data, int width, int height, int channels) {
             } else {
                 theta0 = theta > -M_PI / 3.f 
                                             ? (3.f / 2.f) * theta
-                                            : M_PI / 2 + (3.f / 4.f) * (theta - M_PI / 3.f);
+                                            : - M_PI / 2 + (3.f / 4.f) * (theta + M_PI / 3.f);
             }
             /*  rotation matrix  
              * [ cos theta - sin theta] [c1]
@@ -121,7 +121,7 @@ uchar *convert_to_srgb(float *in_data, int width, int height) {
             } else {
                 theta = theta0 > - M_PI / 2 
                                             ? (2.f / 3.f) * theta0
-                                            : M_PI / 3.f + (4.f / 3.f) * (theta0 - M_PI / 2);
+                                            : - M_PI / 3.f + (4.f / 3.f) * (theta0 + M_PI / 2);
             }
 
             float rotation_angle = theta0 - theta;
