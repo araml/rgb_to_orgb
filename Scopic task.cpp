@@ -13,7 +13,6 @@
 
 using uchar = unsigned char;
 
-
 struct rgb {
     uchar r;
     uchar g;
@@ -25,50 +24,49 @@ enum class COLOR_SPACE {
     SRGB
 };
 
-template <typename T>
-struct matrix {
-    matrix(const char *path) {
+float *convert_to_orgb(uchar *in_data, int width, int height, int channels);
+uchar *convert_to_srgb(float *in_data, int width, int height);
+
+struct orgb_matrix {
+    orgb_matrix(const char *path) {
         uchar *img = stbi_load(path, &width, &height, &channels, 0);
-        if (std::is_same<T, uchar>) {
-
-        } else { // assume srgb,
-
-        }
-
+        data = convert_to_orgb(img, width, height, channels);
         stbi_image_free(img);
     }
 
-    ~matrix() { 
-        delete[] data; 
+    ~orgb_matrix() {
+        delete[] data;
+    }
+
+
+
+    void shift_tone(float rg_shift, float by_shift) {
+        assert(rg_shift > -1.0 && rg_shift < 1.0);
+        assert(by_shift > -1.0 && by_shift < 1.0);
+        this->rg_shift = rg_shift;
+        this->by_shift = by_shift;
+    }
+
+    uchar* to_rgb() {
+        return nullptr;
+    }
+
+    void write_to_file(const char *path) {
+        uchar *rgb_data = convert_to_srgb(data, width, height);
+        stbi_write_png(path, width, height, channels, rgb_data, width * channels);
     }
 
     float *data{nullptr};
     int width{0}, height{0}, channels{0};
-};
-
-struct orgb_matrix : public matrix<float> {
-    orgb_matrix(rgb_matrix &m) {
-
-    }
-
-    void shift_tone(float red_green, float blue_yellow) {
-        assert(red_green > -1.0 && red_green < 1.0);
-        assert(blue_yellow > -1.0 && blue_yellow < 1.0);
-    }
-
-    matrix to_rgb() {
-    
-    }
-
-    /* By default they're zero so it doesn't shift colors when converting to sRGB 
+    /* By default they're zero so it doesn't shift colors when converting to sRGB
      */
-    float red_green_shift{0};
-    float blue_yellow_shift{0};
+    float rg_shift{0};
+    float by_shift{0};
 };
 
-using rgb_matrix = matrix<uchar>;
+//using rgb_matrix = matrix<uchar>;
 
-/* Notes:  
+/* Notes:
  */
 
 float *convert_to_orgb(uchar *in_data, int width, int height, int channels) {
@@ -76,12 +74,12 @@ float *convert_to_orgb(uchar *in_data, int width, int height, int channels) {
     //memcpy(out_data, in_data, width * height * 3);
 
     for (int i = 0; i < height; i++) {
-        for (int k = 0; k < width; k++) {   
+        for (int k = 0; k < width; k++) {
             // we normalize dividing by 255 (also asume input is sRGB)
-            float r = in_data[(i * width + k) * channels]     / 255.f; 
+            float r = in_data[(i * width + k) * channels]     / 255.f;
             float g = in_data[(i * width + k) * channels + 1] / 255.f;
             float b = in_data[(i * width + k) * channels + 2] / 255.f;
-            
+
             // Convert to [L', C1', C2']
             float luma = 0.2990f * r + 0.5870f * g + 0.1140f * b;
             float c1   = 0.5000f * r + 0.5000f * g - 1.0000f * b;
@@ -92,11 +90,11 @@ float *convert_to_orgb(uchar *in_data, int width, int height, int channels) {
 
             /*                      pi/2
              *                       |     atan2(y, x)
-             *                       |    
+             *                       |
              *              compress | stretch
              *                       |
-             *  -pi | pi    ------------------   0 
-             *                       | 
+             *  -pi | pi    ------------------   0
+             *                       |
              *              compress | stretch
              *                       |
              *                       |
@@ -104,20 +102,20 @@ float *convert_to_orgb(uchar *in_data, int width, int height, int channels) {
              */
 
             if (theta > 0) {
-                theta0 = theta < M_PI / 3.f 
-                                            ? (3.f/2.f) * theta
-                                            : M_PI / 2 + (3.f / 4.f) * (theta - M_PI / 3.f);
+                theta0 = theta < M_PI / 3.f
+                             ? (3.f / 2.f) * theta
+                             : M_PI / 2 + (3.f / 4.f) * (theta - M_PI / 3.f);
             } else {
-                theta0 = theta > -M_PI / 3.f 
-                                            ? (3.f / 2.f) * theta
-                                            : - M_PI / 2 + (3.f / 4.f) * (theta + M_PI / 3.f);
+                theta0 = theta > -M_PI / 3.f
+                             ? (3.f / 2.f) * theta
+                             : -M_PI / 2 + (3.f / 4.f) * (theta + M_PI / 3.f);
             }
-            /*  rotation matrix  
+            /*  rotation matrix
              * [ cos theta - sin theta] [c1]
              * [ sin theta   cos theta] [c2]
              */
             float rotation_angle = theta0 - theta;
-        
+
             // rotate and convert to [Cyb, Crg]
             out_data[(i * width + k) * 3]     = luma;
             out_data[(i * width + k) * 3 + 1] = cos(rotation_angle) * c1 - sin(rotation_angle) * c2;
@@ -134,7 +132,7 @@ uchar *convert_to_srgb(float *in_data, int width, int height) {
 
     for (int i = 0; i < height; i++) {
         for (int k = 0; k < width; k++) {
-            float luma = in_data[(i * width + k) * 3]; 
+            float luma = in_data[(i * width + k) * 3];
             float c_yb = in_data[(i * width + k) * 3 + 1];
             float c_rg = in_data[(i * width + k) * 3 + 2];
 
@@ -142,17 +140,17 @@ uchar *convert_to_srgb(float *in_data, int width, int height) {
             float theta0 = atan2(c_rg, c_yb);
             float theta;
             if (theta0 > 0) {
-                theta = theta0 < M_PI / 2 
-                                            ? (2.f / 3.f) * theta0
-                                            : M_PI / 3.f + (4.f / 3.f) * (theta0 - M_PI / 2);
+                theta = theta0 < M_PI / 2
+                            ? (2.f / 3.f) * theta0
+                            : M_PI / 3.f + (4.f / 3.f) * (theta0 - M_PI / 2);
             } else {
-                theta = theta0 > - M_PI / 2 
-                                            ? (2.f / 3.f) * theta0
-                                            : - M_PI / 3.f + (4.f / 3.f) * (theta0 + M_PI / 2);
+                theta = theta0 > -M_PI / 2
+                            ? (2.f / 3.f) * theta0
+                            : -M_PI / 3.f + (4.f / 3.f) * (theta0 + M_PI / 2);
             }
 
             float rotation_angle = theta0 - theta;
-            
+
             /* Inverse rotation? */
             /*  rotation matrix
              * [   cos theta  sin theta] [c_yb]
@@ -160,7 +158,7 @@ uchar *convert_to_srgb(float *in_data, int width, int height) {
              */
             float c1 =   cos(rotation_angle) * c_yb + sin(rotation_angle) * c_rg;
             float c2 = - sin(rotation_angle) * c_yb + cos(rotation_angle) * c_rg;
-           
+
             float r = 1.0000f * luma + 0.1140f * c1 + 0.7436f * c2;
             float g = 1.0000f * luma + 0.1140f * c1 - 0.4111f * c2;
             float b = 1.0000f * luma - 0.8860f * c1 + 0.1663f * c2;
@@ -174,12 +172,14 @@ uchar *convert_to_srgb(float *in_data, int width, int height) {
     return out_data;
 }
 
+/* Diff function to test the filter bijection
+ */
 uchar *difference(uchar *in1, uchar *in2, int width, int height) {
     uchar *out_data = new uchar[width * height * 3];
 
     for (int i = 0; i < height; i++) {
         for (int k = 0; k < width; k++) {
-     
+
             uchar r1 = in1[(i * width + k) * 3];
             uchar g1 = in1[(i * width + k) * 3 + 1];
             uchar b1 = in1[(i * width + k) * 3 + 2];
@@ -209,49 +209,6 @@ uchar *difference(uchar *in1, uchar *in2, int width, int height) {
 
 
 int main() {
-    int width, height, channels;
-    uchar *img = stbi_load("image.png", &width, &height, &channels, 0);
-    std::cout << "Image size x:" << width << " y:" << height << " channels:" << channels << std::endl;
-
-    /*
-    for (int i = 0; i < width; i++) 
-        std::cout << (int)img[(i * 4) + 0] << " " << (int)img[i * 4 + 1] << " " << (int)img[i * 4 + 2] << " " << (int)img[i * 4 + 3] << std::endl;
-    */
-
-    float *orgb_image = convert_to_orgb(img, width, height, channels);
-    uchar *rgb_image = convert_to_srgb(orgb_image, width, height);
-
-    uchar *diff = difference(img, rgb_image, width, height);
-
-    stbi_write_png("image write from orgb.png", width, height, channels, rgb_image, width * channels);
-    stbi_write_png("diff.png", width, height, channels, diff, width * channels);
-    stbi_image_free(img);
-    delete[] orgb_image;
-    delete[] rgb_image;
-
-
-
-    /*
-    uchar arr[3] = { 255, 0, 0 };
-    float *orgb_color = convert_to_orgb(arr, 1, 1, 3);
-    uchar *rgb_color = convert_to_srgb(orgb_color, 1, 1);
-    */
-
-    img = stbi_load("color test.png", &width, &height, &channels, 0);
-    float *orgb_color = convert_to_orgb(img, width, height, channels);
-    for (int i = 0; i < width; i++)
-        std::cout << (int)img[i * 4 + 0] << " "
-        << (int)img[i * 4 + 1] << " "
-        << (int)img[i * 4 + 2] << std::endl;
-        //<< (int)img[i * 4 + 3] << std::endl;
-    std::cout << "AFTER" << std::endl;
-
-
-    uchar *rgb_color_test = convert_to_srgb(orgb_color, width, height);
-    for (int i = 0; i < width; i++)
-        std::cout << (int)rgb_color_test[i * 3 + 0] << " " 
-                  << (int)rgb_color_test[i * 3 + 1] << " " 
-                  << (int)rgb_color_test[i * 3 + 2] << " " << std::endl;
-
-  
-    }
+    orgb_matrix m("image.png");
+    m.write_to_file("image_copy.png");
+}
