@@ -13,35 +13,62 @@
 
 using uchar = unsigned char;
 
-/*
+
 struct rgb {
     uchar r;
     uchar g;
     uchar b;
 };
 
+enum class COLOR_SPACE {
+    ORGB,
+    SRGB
+};
+
+template <typename T>
 struct matrix {
-    matrix(uchar *in_data, int width, int height) : width(width), height(height) {
-        data = new uchar[width * height * 3];
-        memcpy(data, in_data, width * height * 3);
+    matrix(const char *path) {
+        uchar *img = stbi_load(path, &width, &height, &channels, 0);
+        if (std::is_same<T, uchar>) {
+
+        } else { // assume srgb,
+
+        }
+
+        stbi_image_free(img);
     }
 
-    matrix(int width, int height) : width(width), height(height) {
-        data = new uchar[width * height * 3];
+    ~matrix() { 
+        delete[] data; 
     }
 
-    ~matrix() { delete[] data; }
+    float *data{nullptr};
+    int width{0}, height{0}, channels{0};
+};
 
-    rgb& at(int i, int j) {
-        return (rgb &)&data[(i * width + j) * 3];
+struct orgb_matrix : public matrix<float> {
+    orgb_matrix(rgb_matrix &m) {
+
     }
 
-    uchar *data;
-    int width, height;
-};*/
+    void shift_tone(float red_green, float blue_yellow) {
+        assert(red_green > -1.0 && red_green < 1.0);
+        assert(blue_yellow > -1.0 && blue_yellow < 1.0);
+    }
+
+    matrix to_rgb() {
+    
+    }
+
+    /* By default they're zero so it doesn't shift colors when converting to sRGB 
+     */
+    float red_green_shift{0};
+    float blue_yellow_shift{0};
+};
+
+using rgb_matrix = matrix<uchar>;
 
 /* Notes:  
- * - Expects image with no alpha channel (channel width is hardcoded)
  */
 
 float *convert_to_orgb(uchar *in_data, int width, int height, int channels) {
