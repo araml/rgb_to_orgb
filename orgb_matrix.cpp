@@ -11,7 +11,6 @@
 // our libs
 #include "orgb_matrix.h"
 
-
 static float *convert_to_orgb(uchar *in_data, int width, int height, int channels) {
     float *out_data = new float[width * height * 3];
     //memcpy(out_data, in_data, width * height * 3);
@@ -167,7 +166,7 @@ void orgb_matrix::shift_tone(float rg_shift, float by_shift) {
 }
 
 uchar *orgb_matrix::to_rgb() {
-    return nullptr;
+    return convert_to_srgb(data, width, height);
 }
 
 void orgb_matrix::write_to_file(const char *path) {

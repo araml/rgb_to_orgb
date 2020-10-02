@@ -27,7 +27,7 @@ task: $(FOLDERS) $(OBJS)
 	$(CC) $(OBJS) $(LIBS) $(FLAGS) $(INCLUDE) -o build/task
 
 compile_and_run_tests:
-	echo "test"
+	$(CC) test_matrix.cpp orgb_matrix.cpp -lcmocka $(INCLUDE) $(FLAGS) -o build/tests
 
 clean:
 	rm -rf build
