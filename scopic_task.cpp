@@ -12,7 +12,7 @@
 
 #include "orgb_matrix.h"
 
-void write_row(uchar *composed, uchar *mosaic[3], int width, int height) {
+void write_mosaic_row(uchar *composed, uchar *mosaic[3], int width, int height) {
     for (int i = 0; i < height; i++) {
         for (int k = 0; k < 3; k++) {
         memcpy(composed + (i * width * 3 * 3) + k * width * 3, mosaic[k] + i * width * 3, width * 3);
@@ -31,10 +31,10 @@ int main(int argc, char *argv[]) {
     float shift_value = 0.05;
     int width = m.width;
     int height = m.height;
-//    int sub_image_size = width * height * 3;
     uchar *composed = new uchar[width * height * 3 * 9];
 
     int idx = 0;
+    /* kinda ugly */
     uchar *mosaic[9] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                         nullptr, nullptr, nullptr};
 
@@ -43,30 +43,14 @@ int main(int argc, char *argv[]) {
         for (int k = -1; k <= 1; k++) {
             m.shift_tone(shift_value * i, shift_value * k);
             uchar *s = m.to_rgb();
-
-           /* m.write_to_file(std::string(
-                            std::to_string(i) + " " + std::to_string(k) + ".png").c_str());
-*/
-            stbi_write_png(std::string(
-                           std::to_string(i) + " " + std::to_string(k) + ".png").c_str(),
-                           width, height, 3, s, width * 3);
-
             mosaic[idx] = s;
             idx++;
         }
     }
-/*
-    for (int i = 0; i < height; i++) {
-        for (int k = 0; k < 3; k++) {
-            memcpy(composed + (i * width * 3 * 3) + k * width * 3, mosaic[k] + i * width * 3, width * 3);
-        }
-    }
-*/
 
     for (int i = 0; i < 3; i++) {
-        write_row(composed + (width * height * 3 * 3 * i), &mosaic[i * 3], width, height);
+        write_mosaic_row(composed + (width * height * 3 * 3 * i), mosaic + i * 3, width, height);
     }
-
 
     stbi_write_png("composed.png", width * 3, height * 3, 3,
                    composed, width * 3 * 3);
@@ -74,7 +58,4 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < 9; i++) {
         delete[] mosaic[i];
     }
-
-    m.shift_tone(0.03, 0.03);//.07); //yb_mean, rg_mean);
-    m.write_to_file("image_copy.png");
 }
