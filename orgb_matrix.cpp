@@ -1,6 +1,7 @@
 // std lib
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <algorithm>
 
 // external libs
 #define STB_IMAGE_IMPLEMENTATION
@@ -68,15 +69,16 @@ static float *convert_to_orgb(uchar *in_data, int width, int height, int channel
     return out_data;
 }
 
-static uchar *convert_to_srgb(float *in_data, int width, int height) {
+static uchar *convert_to_srgb(float *in_data, int width, int height,
+                              float yb_shift = 0.f, float rg_shift = 0.f) {
     uchar *out_data = new uchar[width * height * 3];
    // memcpy(out_data, in_data, width * height * 3);
 
     for (int i = 0; i < height; i++) {
         for (int k = 0; k < width; k++) {
             float luma = in_data[(i * width + k) * 3];
-            float c_yb = in_data[(i * width + k) * 3 + 1];
-            float c_rg = in_data[(i * width + k) * 3 + 2];
+            float c_yb = std::clamp(in_data[(i * width + k) * 3 + 1] + yb_shift, -1.f, 1.f);
+            float c_rg = std::clamp(in_data[(i * width + k) * 3 + 2] + rg_shift, -1.f, 1.f);
 
             // we need to reverse the rotation
             float theta0 = atan2(c_rg, c_yb);
@@ -158,18 +160,59 @@ orgb_matrix::~orgb_matrix() {
     delete[] data;
 }
 
-void orgb_matrix::shift_tone(float rg_shift, float by_shift) {
-    assert(rg_shift > -1.0 && rg_shift < 1.0);
-    assert(by_shift > -1.0 && by_shift < 1.0);
+void orgb_matrix::shift_tone(float yb_shift, float rg_shift) {
     this->rg_shift = rg_shift;
-    this->by_shift = by_shift;
+    this->yb_shift = yb_shift;
 }
 
 uchar *orgb_matrix::to_rgb() {
-    return convert_to_srgb(data, width, height);
+    return convert_to_srgb(data, width, height, yb_shift, rg_shift);
 }
 
 void orgb_matrix::write_to_file(const char *path) {
-    uchar *rgb_data = convert_to_srgb(data, width, height);
+    uchar *rgb_data = convert_to_srgb(data, width, height, yb_shift, rg_shift);
     stbi_write_png(path, width, height, channels, rgb_data, width * channels);
+}
+
+float orgb_matrix::yb_mean() const {
+    float result = 0;
+    for (int i = 0; i < height; i++) {
+        for (int k = 0; k < width; k++) {
+            result += data[(i * width + k) * 3 + 1];
+        }
+    }
+    return result / (width * height);
+}
+
+float orgb_matrix::rg_mean() const {
+    float result = 0;
+    for (int i = 0; i < height; i++) {
+        for (int k = 0; k < width; k++) {
+            result += data[(i * width + k) * 3 + 2];
+        }
+    }
+    return result / (width * height);
+}
+
+
+float orgb_matrix::yb_std_dev() const {
+    float result = 0;
+    float yb_m = yb_mean();
+    for (int i = 0; i < height; i++) {
+        for (int k = 0; k < width; k++) {
+            result += std::pow(yb_m - data[(i * width + k) * 3 + 1], 2);
+        }
+    }
+    return sqrt(result / (width * height));
+}
+
+float orgb_matrix::rg_std_dev() const {
+    float result = 0;
+    float rg_m = rg_mean();
+    for (int i = 0; i < height; i++) {
+        for (int k = 0; k < width; k++) {
+            result += std::pow(rg_m - data[(i * width + k) * 3 + 2], 2);
+        }
+    }
+    return sqrt(result / (width * height));
 }

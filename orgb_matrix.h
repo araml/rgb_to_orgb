@@ -11,12 +11,18 @@ struct orgb_matrix {
     uchar *to_rgb();
     void write_to_file(const char *path);
 
-private:
+    /* I tried to implement the deviation adjustment but couldnt make it work
+     */
+    float yb_mean() const;
+    float rg_mean() const;
+    float yb_std_dev() const;
+    float rg_std_dev() const;
+
     float *data{nullptr};
     int width{0}, height{0}, channels{0};
     /* By default they're zero so it doesn't shift colors when converting to
      * sRGB
      */
     float rg_shift{0};
-    float by_shift{0};
+    float yb_shift{0};
 };
